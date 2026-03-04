@@ -14,7 +14,27 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   const [revError, setRevError] = useState(false)
   const [showRev, setShowRev] = useState(false)
 
+  const [fullHtml, setFullHtml] = useState<string | null>(null)
+  const [htmlLoading, setHtmlLoading] = useState(false)
+  const [htmlError, setHtmlError] = useState(false)
+
   const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.titles?.canonical || article.title)}`
+
+  const fetchFullHtml = async () => {
+    if (fullHtml) return // already loaded
+    setHtmlLoading(true)
+    setHtmlError(false)
+    try {
+      const res = await fetch(`/api/article?title=${encodeURIComponent(article.titles?.canonical || article.title)}`)
+      if (!res.ok) throw new Error('Failed to load')
+      const text = await res.text()
+      setFullHtml(text)
+    } catch {
+      setHtmlError(true)
+    } finally {
+      setHtmlLoading(false)
+    }
+  }
 
   const fetchRevision = async () => {
     if (showRev) { setShowRev(false); return }
@@ -44,7 +64,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             className="object-cover"
             unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t pointer-events-none from-[var(--surface)] via-transparent to-transparent" />
         </div>
       ) : (
         <div className="w-full h-[160px] bg-[var(--surface2)] flex items-center justify-center text-6xl opacity-20">
@@ -94,13 +114,22 @@ export default function ArticleCard({ article }: ArticleCardProps) {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
+          <button
+            onClick={fetchFullHtml}
+            disabled={htmlLoading || !!fullHtml}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] text-[13px] font-semibold no-underline transition-opacity hover:opacity-88 disabled:opacity-50"
+          >
+            {htmlLoading ? (
+              <><span className="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> Loading…</>
+            ) : fullHtml ? 'Full article loaded 📖' : 'Load full article 📖'}
+          </button>
           <a
             href={wikiUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] text-[13px] font-semibold no-underline transition-opacity hover:opacity-88"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface2)] text-[var(--text)] rounded-[10px] text-[13px] font-semibold no-underline transition-opacity hover:opacity-88"
           >
-            Read full article ↗
+            View on Wikipedia ↗
           </a>
           <button
             onClick={fetchRevision}
@@ -156,6 +185,22 @@ export default function ArticleCard({ article }: ArticleCardProps) {
         {revError && (
           <div className="mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-400 text-[13px]">
             ⚠ Could not load revision data.
+          </div>
+        )}
+
+        {htmlError && (
+          <div className="mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-400 text-[13px]">
+            ⚠ Could not load full article.
+          </div>
+        )}
+
+        {fullHtml && (
+          <div className="mt-6 border border-white/[0.07] rounded-xl overflow-hidden bg-white">
+            <iframe sandbox="allow-same-origin allow-scripts"
+              srcDoc={fullHtml}
+              className="w-full h-[600px] border-none"
+              title="Full Article"
+            />
           </div>
         )}
       </div>
