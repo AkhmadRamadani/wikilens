@@ -1,0 +1,27 @@
+version: '3.9'
+
+# Development override - run with:
+#   docker-compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  wikilens:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: wikilens-dev
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true   # needed for file watching in Docker
+    volumes:
+      - .:/app
+      - /app/node_modules        # anonymous volume to avoid overriding node_modules
+      - /app/.next               # anonymous volume for build cache
+    command: npm run dev
+    networks:
+      - wikilens-net
+
+networks:
+  wikilens-net:
+    driver: bridge
