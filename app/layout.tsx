@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import './globals.css'
+import { LanguageProvider } from '@/lib/LanguageContext'
 
 export const metadata: Metadata = {
   title: 'WikiLens — Explore Knowledge',
@@ -14,9 +16,14 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const cookieStore = cookies()
+  const lang = cookieStore.get('NEXT_LOCALE')?.value || 'en'
+
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang={lang}>
+      <body>
+        <LanguageProvider initialLang={lang}>{children}</LanguageProvider>
+      </body>
     </html>
   )
 }

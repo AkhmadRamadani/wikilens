@@ -1,13 +1,15 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useLanguage } from '@/lib/LanguageContext'
 
 export default function Header() {
   const router = useRouter()
+  const { language, setLanguage } = useLanguage()
 
   const handleRandom = async () => {
     try {
-      const res = await fetch('/api/random')
+      const res = await fetch(`/api/random?lang=${language}`)
       const data = await res.json()
       if (data.titles?.canonical) {
         router.push(`/article/${encodeURIComponent(data.titles.canonical)}`)
@@ -39,6 +41,26 @@ export default function Header() {
         >
           Random
         </button>
+
+        <select
+          value={language}
+          onChange={(e) => {
+            setLanguage(e.target.value)
+            window.location.reload()
+          }}
+          className="bg-[var(--surface2)] text-[12px] text-[var(--text)] border border-white/[0.1] rounded-full px-3 py-1.5 outline-none cursor-pointer hover:border-white/[0.2] transition-colors"
+          aria-label="Select language variant"
+        >
+          <option value="en">English</option>
+          <option value="en-gb">British English</option>
+          <option value="zh">Chinese</option>
+          <option value="zh-hans">Chinese (Simplified)</option>
+          <option value="zh-hant">Chinese (Traditional)</option>
+          <option value="fr">French</option>
+          <option value="es">Spanish</option>
+          <option value="de">German</option>
+        </select>
+
         <a
           href="https://en.wikipedia.org/wiki/Wikipedia:Contributing_to_Wikipedia"
           target="_blank"

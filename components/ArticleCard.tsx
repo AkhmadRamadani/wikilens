@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import type { WikiSummary, WikiRevisionItem } from '@/lib/types'
+import { useLanguage } from '@/lib/LanguageContext'
 
 interface ArticleCardProps {
   article: WikiSummary
@@ -14,14 +15,50 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   const [revError, setRevError] = useState(false)
   const [showRev, setShowRev] = useState(false)
 
-  const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.titles?.canonical || article.title)}`
+  const [fullHtml, setFullHtml] = useState<string | null>(null)
+  const [htmlLoading, setHtmlLoading] = useState(false)
+  const [htmlError, setHtmlError] = useState(false)
+  const [isFullScreen, setIsFullScreen] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  const { language } = useLanguage()
+
+  const wikiDomain = language ? language.split('-')[0] : 'en'
+  const wikiUrl = `https://${wikiDomain}.wikipedia.org/wiki/${encodeURIComponent(article.titles?.canonical || article.title)}`
+
+  const fetchFullHtmlAndFullscreen = async () => {
+    setHtmlLoading(true)
+    setHtmlError(false)
+    try {
+      const langParam = language ? `&lang=${language}` : '';
+      const res = await fetch(`/api/article?title=${encodeURIComponent(article.titles?.canonical || article.title)}${langParam}`)
+      if (!res.ok) throw new Error('Failed to load')
+      const text = await res.text()
+      setFullHtml(text)
+    } catch {
+      setHtmlError(true)
+      setHtmlLoading(false)
+      return // Stop if there's an error
+    }
+    setHtmlLoading(false)
+    setIsFullScreen(true)
+  }
+
+  // Refetch html if language changes and we are in full screen
+  useEffect(() => {
+    if (isFullScreen) {
+      fetchFullHtmlAndFullscreen();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, isFullScreen])
 
   const fetchRevision = async () => {
     if (showRev) { setShowRev(false); return }
     setRevLoading(true)
     setRevError(false)
     try {
-      const res = await fetch(`/api/revision?title=${encodeURIComponent(article.titles?.canonical || article.title)}`)
+      const langParam = language ? `&lang=${language}` : '';
+      const res = await fetch(`/api/revision?title=${encodeURIComponent(article.titles?.canonical || article.title)}${langParam}`)
       const data = await res.json()
       setRevision(data.items?.[0] || null)
       setShowRev(true)
@@ -33,10 +70,11 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   }
 
   return (
+    <>
     <div className="bg-[var(--surface)] border border-white/[0.07] rounded-[20px] overflow-hidden animate-fade-up">
       {/* Hero image */}
       {article.thumbnail?.source ? (
-        <div className="relative w-full h-[280px] overflow-hidden">
+        <div className="relative w-full h-[280px] overflow-hidden pointer-events-none">
           <Image
             src={article.thumbnail.source}
             alt={article.title}
@@ -94,13 +132,28 @@ export default function ArticleCard({ article }: ArticleCardProps) {
 
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
+          <button
+            onClick={() => fetchFullHtmlAndFullscreen()}
+            disabled={htmlLoading}
+            className="flex items-center justify-center w-[40px] h-[40px] bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] transition-opacity hover:opacity-88 disabled:opacity-50"
+            aria-label="Load in full screen"
+            title="Load in full screen"
+          >
+            {htmlLoading ? (
+              <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              </svg>
+            )}
+          </button>
           <a
             href={wikiUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] text-[13px] font-semibold no-underline transition-opacity hover:opacity-88"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--surface2)] text-[var(--text)] rounded-[10px] text-[13px] font-semibold no-underline transition-opacity hover:opacity-88"
           >
-            Read full article ↗
+            View on Wikipedia ↗
           </a>
           <button
             onClick={fetchRevision}
@@ -158,7 +211,46 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             ⚠ Could not load revision data.
           </div>
         )}
+
+        {htmlError && (
+          <div className="mt-4 p-4 bg-red-900/20 border border-red-500/30 rounded-xl text-red-400 text-[13px]">
+            ⚠ Could not load full article.
+          </div>
+        )}
       </div>
     </div>
+
+    {fullHtml && isFullScreen && (
+      <div className="fixed inset-0 z-[9999] bg-white m-0 rounded-none overflow-hidden flex flex-col">
+        <div className="absolute top-4 right-4 z-[10000] flex items-center gap-2">
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="bg-black/50 hover:bg-black/80 text-white rounded-full h-10 px-4 flex items-center justify-center backdrop-blur-sm transition-colors text-sm font-medium"
+            aria-label="Toggle dark mode"
+          >
+            {isDarkMode ? '☀ Light' : '🌙 Dark'}
+          </button>
+          <button
+            onClick={() => setIsFullScreen(false)}
+            className="bg-black/50 hover:bg-black/80 text-white rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm transition-colors"
+            aria-label="Exit full screen"
+          >
+            ✕
+          </button>
+        </div>
+        <iframe sandbox="allow-scripts"
+          srcDoc={fullHtml.replace(/<html([^>]*)>/i, (match, attributes) => {
+            const themeClass = isDarkMode ? 'skin-theme-clientpref-night' : 'skin-theme-clientpref-day';
+            if (/class="/i.test(attributes)) {
+              return `<html${attributes.replace(/class="/i, `class="${themeClass} `)}>`;
+            }
+            return `<html${attributes} class="${themeClass}">`;
+          })}
+          className="w-full h-full border-none"
+          title="Full Article"
+        />
+      </div>
+    )}
+    </>
   )
 }

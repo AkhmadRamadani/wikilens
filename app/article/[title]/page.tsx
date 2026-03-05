@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
 import type { Metadata } from 'next'
 import { getSummary } from '@/lib/wiki'
 import Header from '@/components/Header'
@@ -12,9 +13,12 @@ interface PageProps {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const cookieStore = cookies()
+  const lang = cookieStore.get('NEXT_LOCALE')?.value || 'en'
+
   try {
     const title = decodeURIComponent(params.title)
-    const article = await getSummary(title)
+    const article = await getSummary(title, lang)
     return {
       title: `${article.titles?.display || article.title} — WikiLens`,
       description: article.extract?.substring(0, 160),
@@ -28,11 +32,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function ArticlePage({ params }: PageProps) {
+  const cookieStore = cookies()
+  const lang = cookieStore.get('NEXT_LOCALE')?.value || 'en'
   const title = decodeURIComponent(params.title)
 
   let article
   try {
-    article = await getSummary(title)
+    article = await getSummary(title, lang)
   } catch {
     notFound()
   }
