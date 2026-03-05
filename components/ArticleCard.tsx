@@ -17,23 +17,27 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   const [fullHtml, setFullHtml] = useState<string | null>(null)
   const [htmlLoading, setHtmlLoading] = useState(false)
   const [htmlError, setHtmlError] = useState(false)
+  const [isFullScreen, setIsFullScreen] = useState(false)
 
   const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.titles?.canonical || article.title)}`
 
-  const fetchFullHtml = async () => {
-    if (fullHtml) return // already loaded
-    setHtmlLoading(true)
-    setHtmlError(false)
-    try {
-      const res = await fetch(`/api/article?title=${encodeURIComponent(article.titles?.canonical || article.title)}`)
-      if (!res.ok) throw new Error('Failed to load')
-      const text = await res.text()
-      setFullHtml(text)
-    } catch {
-      setHtmlError(true)
-    } finally {
+  const fetchFullHtmlAndFullscreen = async () => {
+    if (!fullHtml) {
+      setHtmlLoading(true)
+      setHtmlError(false)
+      try {
+        const res = await fetch(`/api/article?title=${encodeURIComponent(article.titles?.canonical || article.title)}`)
+        if (!res.ok) throw new Error('Failed to load')
+        const text = await res.text()
+        setFullHtml(text)
+      } catch {
+        setHtmlError(true)
+        setHtmlLoading(false)
+        return // Stop if there's an error
+      }
       setHtmlLoading(false)
     }
+    setIsFullScreen(true)
   }
 
   const fetchRevision = async () => {
@@ -53,10 +57,11 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   }
 
   return (
+    <>
     <div className="bg-[var(--surface)] border border-white/[0.07] rounded-[20px] overflow-hidden animate-fade-up">
       {/* Hero image */}
       {article.thumbnail?.source ? (
-        <div className="relative w-full h-[280px] overflow-hidden">
+        <div className="relative w-full h-[280px] overflow-hidden pointer-events-none">
           <Image
             src={article.thumbnail.source}
             alt={article.title}
@@ -64,7 +69,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             className="object-cover"
             unoptimized
           />
-          <div className="absolute inset-0 bg-gradient-to-t pointer-events-none from-[var(--surface)] via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-transparent" />
         </div>
       ) : (
         <div className="w-full h-[160px] bg-[var(--surface2)] flex items-center justify-center text-6xl opacity-20">
@@ -115,13 +120,19 @@ export default function ArticleCard({ article }: ArticleCardProps) {
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={fetchFullHtml}
-            disabled={htmlLoading || !!fullHtml}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] text-[13px] font-semibold no-underline transition-opacity hover:opacity-88 disabled:opacity-50"
+            onClick={fetchFullHtmlAndFullscreen}
+            disabled={htmlLoading}
+            className="flex items-center justify-center w-[40px] h-[40px] bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] transition-opacity hover:opacity-88 disabled:opacity-50"
+            aria-label="Load in full screen"
+            title="Load in full screen"
           >
             {htmlLoading ? (
-              <><span className="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> Loading…</>
-            ) : fullHtml ? 'Full article loaded 📖' : 'Load full article 📖'}
+              <span className="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+              </svg>
+            )}
           </button>
           <a
             href={wikiUrl}
@@ -193,17 +204,25 @@ export default function ArticleCard({ article }: ArticleCardProps) {
             ⚠ Could not load full article.
           </div>
         )}
-
-        {fullHtml && (
-          <div className="mt-6 border border-white/[0.07] rounded-xl overflow-hidden bg-white">
-            <iframe sandbox="allow-same-origin allow-scripts"
-              srcDoc={fullHtml}
-              className="w-full h-[600px] border-none"
-              title="Full Article"
-            />
-          </div>
-        )}
       </div>
     </div>
+
+    {fullHtml && isFullScreen && (
+      <div className="fixed inset-0 z-[9999] bg-white m-0 rounded-none overflow-hidden flex flex-col">
+        <button
+          onClick={() => setIsFullScreen(false)}
+          className="absolute top-4 right-4 z-[10000] bg-black/50 hover:bg-black/80 text-white rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm transition-colors"
+          aria-label="Exit full screen"
+        >
+          ✕
+        </button>
+        <iframe sandbox="allow-same-origin allow-scripts"
+          srcDoc={fullHtml}
+          className="w-full h-full border-none"
+          title="Full Article"
+        />
+      </div>
+    )}
+    </>
   )
 }
