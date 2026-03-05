@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import type { WikiMediaItem } from '@/lib/types'
+import { useLanguage } from '@/lib/LanguageContext'
 
 interface MediaGalleryProps {
   title: string
@@ -12,11 +13,13 @@ export default function MediaGallery({ title }: MediaGalleryProps) {
   const [images, setImages] = useState<WikiMediaItem[]>([])
   const [loading, setLoading] = useState(true)
   const [lightbox, setLightbox] = useState<string | null>(null)
+  const { language } = useLanguage()
 
   useEffect(() => {
     setLoading(true)
     setImages([])
-    fetch(`/api/media?title=${encodeURIComponent(title)}`)
+    const langParam = language ? `&lang=${language}` : '';
+    fetch(`/api/media?title=${encodeURIComponent(title)}${langParam}`)
       .then(r => r.json())
       .then(data => {
         const imgs = (data.items || [])
@@ -26,7 +29,7 @@ export default function MediaGallery({ title }: MediaGalleryProps) {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [title])
+  }, [title, language])
 
   if (loading) {
     return (

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import type { SearchSuggestion } from '@/lib/types'
+import { useLanguage } from '@/lib/LanguageContext'
 
 interface SearchBarProps {
   initialValue?: string
@@ -16,6 +17,7 @@ export default function SearchBar({ initialValue = '', autoFocus = false }: Sear
   const [loading, setLoading] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const router = useRouter()
+  const { language } = useLanguage()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -26,7 +28,7 @@ export default function SearchBar({ initialValue = '', autoFocus = false }: Sear
   const fetchSuggestions = useCallback(async (q: string) => {
     if (q.length < 2) { setSuggestions([]); return }
     try {
-      const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}`)
+      const res = await fetch(`/api/suggest?q=${encodeURIComponent(q)}&lang=${language}`)
       const data = await res.json()
       setSuggestions(data.slice(0, 6))
       setShowSuggestions(true)
