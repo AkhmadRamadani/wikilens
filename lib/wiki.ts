@@ -59,12 +59,17 @@ export async function openSearch(query: string): Promise<string[]> {
   return data[1] || []
 }
 
-export async function getMobileHtml(title: string): Promise<string> {
+export async function getMobileHtml(title: string, language?: string): Promise<string> {
+  const headers: Record<string, string> = {
+    'User-Agent': 'WikiLens/1.0 (https://github.com/wikilens)',
+    'Api-User-Agent': 'WikiLens/1.0 (https://github.com/wikilens)'
+  }
+  if (language) {
+    headers['Accept-Language'] = language
+  }
+
   const res = await fetch(`${BASE}/page/mobile-html/${encodeURIComponent(title)}`, {
-    headers: {
-      'User-Agent': 'WikiLens/1.0 (https://github.com/wikilens)',
-      'Api-User-Agent': 'WikiLens/1.0 (https://github.com/wikilens)'
-    },
+    headers,
     next: { revalidate: 3600 },
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)

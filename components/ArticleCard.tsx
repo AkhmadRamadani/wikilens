@@ -18,15 +18,20 @@ export default function ArticleCard({ article }: ArticleCardProps) {
   const [htmlLoading, setHtmlLoading] = useState(false)
   const [htmlError, setHtmlError] = useState(false)
   const [isFullScreen, setIsFullScreen] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [language, setLanguage] = useState<string>('')
 
   const wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(article.titles?.canonical || article.title)}`
 
-  const fetchFullHtmlAndFullscreen = async () => {
-    if (!fullHtml) {
+  const fetchFullHtmlAndFullscreen = async (forceLang?: string) => {
+    const langToFetch = forceLang !== undefined ? forceLang : language;
+    // Always refetch if forcing a new language, or if we don't have HTML yet
+    if (!fullHtml || forceLang !== undefined) {
       setHtmlLoading(true)
       setHtmlError(false)
       try {
-        const res = await fetch(`/api/article?title=${encodeURIComponent(article.titles?.canonical || article.title)}`)
+        const langParam = langToFetch ? `&lang=${langToFetch}` : '';
+        const res = await fetch(`/api/article?title=${encodeURIComponent(article.titles?.canonical || article.title)}${langParam}`)
         if (!res.ok) throw new Error('Failed to load')
         const text = await res.text()
         setFullHtml(text)
@@ -38,6 +43,11 @@ export default function ArticleCard({ article }: ArticleCardProps) {
       setHtmlLoading(false)
     }
     setIsFullScreen(true)
+  }
+
+  const handleLanguageChange = (newLang: string) => {
+    setLanguage(newLang);
+    fetchFullHtmlAndFullscreen(newLang);
   }
 
   const fetchRevision = async () => {
@@ -120,7 +130,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
         {/* Actions */}
         <div className="flex flex-wrap gap-3">
           <button
-            onClick={fetchFullHtmlAndFullscreen}
+            onClick={() => fetchFullHtmlAndFullscreen()}
             disabled={htmlLoading}
             className="flex items-center justify-center w-[40px] h-[40px] bg-[var(--accent)] text-[#0a0a0f] rounded-[10px] transition-opacity hover:opacity-88 disabled:opacity-50"
             aria-label="Load in full screen"
@@ -209,15 +219,38 @@ export default function ArticleCard({ article }: ArticleCardProps) {
 
     {fullHtml && isFullScreen && (
       <div className="fixed inset-0 z-[9999] bg-white m-0 rounded-none overflow-hidden flex flex-col">
-        <button
-          onClick={() => setIsFullScreen(false)}
-          className="absolute top-4 right-4 z-[10000] bg-black/50 hover:bg-black/80 text-white rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm transition-colors"
-          aria-label="Exit full screen"
-        >
-          ✕
-        </button>
+        <div className="absolute top-4 right-4 z-[10000] flex items-center gap-2">
+          <select
+            value={language}
+            onChange={(e) => handleLanguageChange(e.target.value)}
+            className="bg-black/50 hover:bg-black/80 text-white rounded-full h-10 px-4 backdrop-blur-sm transition-colors text-sm font-medium appearance-none cursor-pointer border-none outline-none"
+            aria-label="Change language variant"
+          >
+            <option value="" className="bg-black text-white">Default Lang</option>
+            <option value="en-gb" className="bg-black text-white">British English</option>
+            <option value="en-ca" className="bg-black text-white">Canadian English</option>
+            <option value="zh-hans" className="bg-black text-white">Chinese (Simplified)</option>
+            <option value="zh-hant" className="bg-black text-white">Chinese (Traditional)</option>
+            <option value="sr-el" className="bg-black text-white">Serbian (Latin)</option>
+            <option value="sr-ec" className="bg-black text-white">Serbian (Cyrillic)</option>
+          </select>
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="bg-black/50 hover:bg-black/80 text-white rounded-full h-10 px-4 flex items-center justify-center backdrop-blur-sm transition-colors text-sm font-medium"
+            aria-label="Toggle dark mode"
+          >
+            {isDarkMode ? '☀ Light' : '🌙 Dark'}
+          </button>
+          <button
+            onClick={() => setIsFullScreen(false)}
+            className="bg-black/50 hover:bg-black/80 text-white rounded-full w-10 h-10 flex items-center justify-center backdrop-blur-sm transition-colors"
+            aria-label="Exit full screen"
+          >
+            ✕
+          </button>
+        </div>
         <iframe sandbox="allow-same-origin allow-scripts"
-          srcDoc={fullHtml}
+          srcDoc={isDarkMode ? fullHtml.replace('<html ', '<html class="pagelib_theme_dark" ') : fullHtml}
           className="w-full h-full border-none"
           title="Full Article"
         />
