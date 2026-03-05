@@ -49,7 +49,8 @@ export default function ArticleCard({ article }: ArticleCardProps) {
     if (isFullScreen) {
       fetchFullHtmlAndFullscreen();
     }
-  }, [language])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language, isFullScreen])
 
   const fetchRevision = async () => {
     if (showRev) { setShowRev(false); return }
@@ -238,7 +239,13 @@ export default function ArticleCard({ article }: ArticleCardProps) {
           </button>
         </div>
         <iframe sandbox="allow-scripts"
-          srcDoc={isDarkMode ? fullHtml.replace('<html ', '<html class="pagelib_theme_dark" ') : fullHtml}
+          srcDoc={fullHtml.replace(/<html([^>]*)>/i, (match, attributes) => {
+            const themeClass = isDarkMode ? 'skin-theme-clientpref-night' : 'skin-theme-clientpref-day';
+            if (/class="/i.test(attributes)) {
+              return `<html${attributes.replace(/class="/i, `class="${themeClass} `)}>`;
+            }
+            return `<html${attributes} class="${themeClass}">`;
+          })}
           className="w-full h-full border-none"
           title="Full Article"
         />
